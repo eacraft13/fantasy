@@ -10,6 +10,7 @@
   "license": "ISC",
   "dependencies": {
     "lodash": "^3.10.1",
-    "request": "^2.65.0"
+    "request": "^2.65.0",
+    "rethinkdb": "^2.2.0"
   }
 }
