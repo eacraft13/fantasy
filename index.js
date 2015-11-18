@@ -12,6 +12,7 @@ var stats = [
     //require('./lib/game_stats'),
     //require('./lib/players'),
     //require('./lib/season_league_leaders')
+	require('./lib/player_game_stats_by_week')
 ];
 
 
