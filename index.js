@@ -1,54 +1,41 @@
-var _           = require('lodash');
-var async       = require('async');
-var ocpHeaders  = { 'Ocp-Apim-Subscription-Key': 'f05dcf2fe1934b4197174577dfe3068b' };
-var rOptions    = { host: '45.56.91.5', port: '28015' };
-var r           = require('rethinkdb');
-var request     = require('request');
+// For simpler require statements
+global.__base = __dirname + '/';
+
+var _              = require('lodash');
+var async          = require('async');
+var request        = require('request');
+var secrets        = require('./secrets');
+var PlayerGameStat = require('./lib/models/PlayerGameStat');
 
 
-
-var stats = [
-    //require('./lib/final_box_scores'),
-    //require('./lib/game_stats'),
-    //require('./lib/players'),
-    //require('./lib/season_league_leaders')
-	require('./lib/player_game_stats_by_week')
-];
-
-
-
-r.connect(rOptions, function(err, conn) {
-    if (err) throw err;
-
-    var requests = [];
-
-    _.each(stats, function(stat) {
-
-        var urls = _.flattenDeep(stat.urls);
-        _.each(urls, function(url) {
-            requests.push(function(callback) {
-                request({ url: url, headers: ocpHeaders }, function(err, response) {
-                    if (err) throw err;
-
-                    r
-                    .db(stat.db)
-                    .table(stat.table)
-                    .insert(JSON.parse(response.body))
-                    .run(conn, function(err, result) {
-                        if (err) throw err;
-                        console.log('Inserted', result.inserted, 'rows to', stat.table);
-                        callback(null, JSON.stringify(result, null, 2));
-                    });
-                });
-            });
-
-        });
-
-    });
-
-    async.parallel(requests, function(err, results) {
-        if (err) throw err;
-        console.log('Success!');
-        process.exit();
-    });
+var season = '2015REG'; // options: 2015
+var urls = _.map([ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 ], function(week) {
+    return 'https://api.fantasydata.net/nfl/v2/JSON/PlayerGameStatsByWeek/' + season + '/' + week;
 });
+
+
+
+async.parallel(_.map(urls, function(url) {
+    return function(callback) {
+        request({
+            url: _.first(urls),
+            headers: {
+                'Ocp-Apim-Subscription-Key': secrets.ocpApim.subscriptionKey
+            }
+        }, function(err, response) {
+            if (err) throw err;
+            if (response.statusCode !== 200) throw response.statusMessage;
+
+            PlayerGameStat.create(JSON.parse(response.body), function(err, data) {
+                if (err) throw err;
+                callback(err, data);
+                console.log(url, 'processed...');
+            });
+        });
+    };
+}), function(err, results) {
+    if (err) throw err;
+    console.log('Success!');
+    process.exit();
+});
+
